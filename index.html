@@ -395,13 +395,6 @@ textarea.form-input{resize:none;min-height:70px}
         <div class="menu-desc">リストで選択中のステータスのみ出力</div>
       </div>
     </div>
-    <div class="menu-item" onclick="exportHoukoku();closeModal('menu-modal')">
-      <span class="menu-icon">📋</span>
-      <div>
-        <div>事前説明報告書（Excel）</div>
-        <div class="menu-desc">帳票形式でExcelファイルを出力</div>
-      </div>
-    </div>
     <div class="menu-item" onclick="confirmClearAll();closeModal('menu-modal')">
       <span class="menu-icon">🗑</span>
       <div style="color:var(--red)">
@@ -1383,72 +1376,8 @@ function openAllGmap(){
   const q=targets.slice(0,10).map(v=>v.contactAddress).join(' ');
   window.open('https://www.google.com/maps/search/'+encodeURIComponent(q),'_blank');
 }
-// ===== 事前説明報告書 Excel出力 =====
-function buildSetsumeiResult(v){
-  const today=nowDate().replace(/-/g,'/');
-  const memo=v.memo?v.memo+'　':'';
-  const ac=absentCount(v);
-  const status=v.status;
-  if(status==='absent'&&ac>=3){
-    return memo+'不在の為、ポストに投函　'+today+'現在、特に意見なし';
-  }
-  if(status==='ok'){return memo+'特に意見なし';}
-  if(status==='opinion'){return memo.trim()||'（意見内容を備考に記載）';}
-  if(status==='mailed'){
-    const dest=v.contactName||'連絡先';
-    const mailedHist=[...v.history].reverse().find(h=>h.status==='mailed');
-    const mailedDate=mailedHist?mailedHist.date.replace(/-/g,'/'):'';
-    return memo+dest+'に'+mailedDate+'に郵送、所有者に渡して頂くように依頼、'+today+'現在、特に意見なし';
-  }
-  if(status==='contact'){return memo+'連絡済　'+today+'現在、特に意見なし';}
-  return memo+'未';
-}
-
-function exportHoukoku(){
-  if(!visits.length){showToast('データがありません');return;}
-  showToast('Excel準備中...');
-  if(typeof XLSX!=='undefined'){_doExportHoukoku();return;}
-  const s=document.createElement('script');
-  s.src='https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js';
-  s.onload=function(){_doExportHoukoku();};
-  s.onerror=function(){showToast('Excel出力ライブラリの読み込みに失敗しました');};
-  document.head.appendChild(s);
-}
-
-function _doExportHoukoku(){
-  const today=nowDate().replace(/-/g,'/');
-  const wb=XLSX.utils.book_new();
-  const PER_PAGE=17;
-  const pages=Math.ceil(visits.length/PER_PAGE);
-  for(let p=0;p<pages;p++){
-    const pageVisits=visits.slice(p*PER_PAGE,(p+1)*PER_PAGE);
-    const aoa=[];
-    aoa.push(['','','事　前　説　明　報　告　書','','','']);
-    aoa.push(['','説　明　者','株式会社久保建築設計　渡部','','','']);
-    aoa.push(['','説　明　内　容','別紙資料に基づき当該建築に係る建築計画の内容・施工計画の概要・日影の影響・電波障害について説明のうえ、建設会社の決定後に再度訪問を約束。','','','']);
-    aoa.push(['NO.','氏　名','住　所','説明年月日','説　明　結　果','']);
-    for(let i=0;i<PER_PAGE;i++){
-      const v=pageVisits[i];
-      if(v){
-        const last=[...v.history].reverse().find(h=>h.status!==undefined);
-        const lastDate=last?last.date.replace(/-/g,'/'):'';
-        aoa.push([p*PER_PAGE+i+1,v.name,v.address||'',lastDate,buildSetsumeiResult(v),'']);
-      }else{
-        aoa.push([p*PER_PAGE+i+1,'','','','','']);
-      }
-    }
-    aoa.push(['','','','',(p+1)+'ページ','']);
-    const ws=XLSX.utils.aoa_to_sheet(aoa);
-    ws['!cols']=[{wch:6},{wch:16},{wch:28},{wch:12},{wch:52},{wch:4}];
-    ws['!rows']=[{hpt:28},{hpt:22},{hpt:36},{hpt:20},...Array(PER_PAGE).fill({hpt:28}),{hpt:18}];
-    XLSX.utils.book_append_sheet(wb,ws,(p+1)+'ページ');
-  }
-  const filename='jizen_setsumei_'+today.replace(/\//g,'')+'.xlsx';
-  XLSX.writeFile(wb,filename);
-  showToast('事前説明報告書を出力しました（'+pages+'ページ）');
-}
-
 function showToast(msg){
+  const t=document.getElementById('toast');
   t.textContent=msg;t.classList.add('show');
   setTimeout(()=>t.classList.remove('show'),2200);
 }
